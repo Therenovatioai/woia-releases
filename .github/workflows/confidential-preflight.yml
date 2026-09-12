@@ -1,0 +1,29 @@
+name: Confidential verification preflight
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    name: Confidential transport (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    env:
+      WOIA_COMMIT: 4506281317bed68c22bb5e5245917ccfc7d8150d
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - run: node --test verification/evidence.test.mjs
+      - run: node verification/preflight.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: confidential-preflight-${{ matrix.os }}
+          path: ${{ runner.temp }}/synthetic-sealed/*.wci
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
