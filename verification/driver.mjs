@@ -120,11 +120,12 @@ async function run(diagnostic = false) {
   } else if (c.context.job.startsWith('platform-')) {
     if (c.context.job !== `platform-${process.platform}`) throw new Error('Native platform differs.');
     const label = { linux: 'Linux', darwin: 'macOS', win32: 'Windows' }[process.platform];
-    await command('conformance', ['run', 'conformance', 'run', '--output', join(paths.conformance, `${label}.conformance.json`)], {}, 1200000);
+    // The platform job owns the original shared 80-minute budget; do not impose a shorter suite cap.
+    await command('conformance', ['run', 'conformance', 'run', '--output', join(paths.conformance, `${label}.conformance.json`)], {}, 4500000);
     await command('build', ['tooling/release/ci.ts'], {
       WOIA_RELEASE_OUTPUT: join(paths.release, `${label}.tar.gz`), WOIA_RELEASE_REPORT: join(paths.release, `${label}.release.json`),
       WOIA_RUNTIME_OUTPUT: paths.runtime, WOIA_PREDECESSOR_RUN: '', WOIA_PREDECESSOR_DIGESTS: '',
-    }, 1200000);
+    }, 4500000);
     if (process.platform !== 'win32') await command('tests', ['run', 'test:ci'], tests, 3600000);
   } else if (c.context.job.startsWith('windows-')) {
     if (process.platform !== 'win32') throw new Error('Windows runner required.');
