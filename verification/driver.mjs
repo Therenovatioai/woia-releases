@@ -3,6 +3,7 @@ import { mkdir, open, writeFile, readFile, readdir, copyFile, lstat, mkdtemp, un
 import { constants } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { tmpdir } from 'node:os';
 import { seal, unseal, validateContext } from './evidence.mjs';
 
 export function privateEnvironment(base, directory) {
@@ -71,7 +72,7 @@ async function checkout() {
   }
   console.log('Exact private checkout completed; temporary authentication removed.');
 }
-async function run() {
+async function run(diagnostic = false) {
   const c = configuration();
   const logs = join(c.data, 'logs', c.context.job);
   await mkdir(logs, { recursive: true });
@@ -94,6 +95,23 @@ async function run() {
   }
   const command = (id, args, extra = {}, timeout = 600000) => quiet('bun', args, c.root, join(logs, `${id}.log`), { ...env, ...extra }, timeout);
   await command('install', ['install', '--frozen-lockfile']);
+  if (diagnostic) {
+    if (c.context.job !== `platform-${process.platform}`) throw new Error('Diagnostic platform differs.');
+    const diagnosticEnv = privateEnvironment({ PATH: env.PATH, SystemRoot: env.SystemRoot ?? '', WINDIR: env.WINDIR ?? '', HOME: env.HOME ?? '', USERPROFILE: env.USERPROFILE ?? '', TMPDIR: tmpdir(), TMP: tmpdir(), TEMP: tmpdir(), NO_COLOR: '1' }, logs);
+    const groups = {
+      auxiliary: ['packages/core/src/auxiliary-work.test.ts', 'packages/adapter-engine/src/auxiliary.test.ts', 'packages/state-engine/src/auxiliary-preference.test.ts', 'packages/workspace-application/src/auxiliary.test.ts'],
+      limits: ['tooling/spec-008/src/demo-transport.test.ts', 'tooling/spec-008/src/demo-replay.test.ts'],
+      starter: ['packages/cli/src/starter.test.ts'],
+    };
+    let failed = false;
+    for (const [id, files] of Object.entries(groups)) {
+      try { await quiet('bun', ['--no-install', '--no-env-file', 'test', ...files.map(f => './' + f)], c.root, join(logs, `diagnostic-${id}.log`), diagnosticEnv, 600000); }
+      catch { failed = true; }
+    }
+    if (failed) throw new Error('Diagnostic cases failed; inspect encrypted evidence.');
+    console.log('Focused diagnostic completed; this is not publication verification.');
+    return;
+  }
   const paths = Object.fromEntries(['release', 'conformance', 'runtime', 'tests', 'evidence'].map((p) => [p, join(c.data, p)]));
   for (const path of Object.values(paths)) await mkdir(path, { recursive: true });
   const tests = { WOIA_CI_TEST_PROFILE: 'publication', WOIA_REPORTS_ROOT: paths.tests };
@@ -161,6 +179,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     if (process.argv.length !== 3) throw new Error('Usage rejected.');
     const mode = process.argv[2];
     if (mode === 'run') await run();
+    else if (mode === 'diagnose') await run(true);
     else if (mode === 'guard') { configuration(); console.log('Source and workflow identities accepted.'); }
     else if (mode === 'checkout') await checkout();
     else if (mode === 'seal') await encrypt();
