@@ -50,19 +50,16 @@ jobs:
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
           bun-version: 1.3.13
-      - name: Checkout exact private source with temporary read-only key
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          repository: Therenovatioai/woia-foundation
-          ref: ${{ inputs.commit }}
-          ssh-key: ${{ secrets.WOIA_SOURCE_READ_KEY }}
-          ssh-strict: true
-          persist-credentials: false
-          path: source
       - name: Verify public adapter integrity
         if: always()
         run: >-
-          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"aef9fb66aa2b3438da22736fde9e0237dcd56244f055064bc9272bf38f9d4466","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"052cc1d843694c625b1a4550be7c6428991781d5ac665bbf0523d46991be1367","verification/evidence.test.mjs":"7de7c84ec29e9ab5d19fbae2a2b20d7ec9d9d0a283b617fdee93f4a5bc95393a","verification/preflight.mjs":"fe094301b01543d0991c683083c8f4d6cadd88272c342dddf6bfbd434025f59f"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"e2569de06eee294028238c1114b9c2e6ae05c9aacb11a322fd8d0c9327447e8c","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"052cc1d843694c625b1a4550be7c6428991781d5ac665bbf0523d46991be1367","verification/evidence.test.mjs":"b1725d088c8f5281d08dad4252bd8aaf87225cc8b19e0efc28d97d1924e2721a","verification/preflight.mjs":"fe094301b01543d0991c683083c8f4d6cadd88272c342dddf6bfbd434025f59f"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+      - name: Guard both identities before granting access
+        run: node verification/driver.mjs guard
+      - name: Capture exact private checkout and remove its temporary authentication
+        env:
+          WOIA_SOURCE_READ_KEY: ${{ secrets.WOIA_SOURCE_READ_KEY }}
+        run: node verification/driver.mjs checkout
       - name: Check public transport adapter
         run: node --test verification/evidence.test.mjs
       - name: Run private static checks
@@ -71,7 +68,7 @@ jobs:
         id: seal_guard
         if: always()
         run: >-
-          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"aef9fb66aa2b3438da22736fde9e0237dcd56244f055064bc9272bf38f9d4466","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"052cc1d843694c625b1a4550be7c6428991781d5ac665bbf0523d46991be1367","verification/evidence.test.mjs":"7de7c84ec29e9ab5d19fbae2a2b20d7ec9d9d0a283b617fdee93f4a5bc95393a","verification/preflight.mjs":"fe094301b01543d0991c683083c8f4d6cadd88272c342dddf6bfbd434025f59f"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"e2569de06eee294028238c1114b9c2e6ae05c9aacb11a322fd8d0c9327447e8c","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"052cc1d843694c625b1a4550be7c6428991781d5ac665bbf0523d46991be1367","verification/evidence.test.mjs":"b1725d088c8f5281d08dad4252bd8aaf87225cc8b19e0efc28d97d1924e2721a","verification/preflight.mjs":"fe094301b01543d0991c683083c8f4d6cadd88272c342dddf6bfbd434025f59f"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
       - name: Encrypt private evidence for the maintainer
         id: seal
         if: always() && steps.seal_guard.outcome == 'success'
@@ -112,26 +109,23 @@ jobs:
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
           bun-version: 1.3.13
-      - name: Checkout exact private source with temporary read-only key
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          repository: Therenovatioai/woia-foundation
-          ref: ${{ inputs.commit }}
-          ssh-key: ${{ secrets.WOIA_SOURCE_READ_KEY }}
-          ssh-strict: true
-          persist-credentials: false
-          path: source
       - name: Verify public adapter integrity
         if: always()
         run: >-
-          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"aef9fb66aa2b3438da22736fde9e0237dcd56244f055064bc9272bf38f9d4466","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"052cc1d843694c625b1a4550be7c6428991781d5ac665bbf0523d46991be1367","verification/evidence.test.mjs":"7de7c84ec29e9ab5d19fbae2a2b20d7ec9d9d0a283b617fdee93f4a5bc95393a","verification/preflight.mjs":"fe094301b01543d0991c683083c8f4d6cadd88272c342dddf6bfbd434025f59f"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"e2569de06eee294028238c1114b9c2e6ae05c9aacb11a322fd8d0c9327447e8c","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"052cc1d843694c625b1a4550be7c6428991781d5ac665bbf0523d46991be1367","verification/evidence.test.mjs":"b1725d088c8f5281d08dad4252bd8aaf87225cc8b19e0efc28d97d1924e2721a","verification/preflight.mjs":"fe094301b01543d0991c683083c8f4d6cadd88272c342dddf6bfbd434025f59f"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+      - name: Guard both identities before granting access
+        run: node verification/driver.mjs guard
+      - name: Capture exact private checkout and remove its temporary authentication
+        env:
+          WOIA_SOURCE_READ_KEY: ${{ secrets.WOIA_SOURCE_READ_KEY }}
+        run: node verification/driver.mjs checkout
       - name: Run native conformance, packaging, runtime smoke and functional suite
         run: node verification/driver.mjs run
       - name: Verify public adapter integrity
         id: seal_guard
         if: always()
         run: >-
-          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"aef9fb66aa2b3438da22736fde9e0237dcd56244f055064bc9272bf38f9d4466","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"052cc1d843694c625b1a4550be7c6428991781d5ac665bbf0523d46991be1367","verification/evidence.test.mjs":"7de7c84ec29e9ab5d19fbae2a2b20d7ec9d9d0a283b617fdee93f4a5bc95393a","verification/preflight.mjs":"fe094301b01543d0991c683083c8f4d6cadd88272c342dddf6bfbd434025f59f"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"e2569de06eee294028238c1114b9c2e6ae05c9aacb11a322fd8d0c9327447e8c","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"052cc1d843694c625b1a4550be7c6428991781d5ac665bbf0523d46991be1367","verification/evidence.test.mjs":"b1725d088c8f5281d08dad4252bd8aaf87225cc8b19e0efc28d97d1924e2721a","verification/preflight.mjs":"fe094301b01543d0991c683083c8f4d6cadd88272c342dddf6bfbd434025f59f"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
       - name: Encrypt private evidence for the maintainer
         id: seal
         if: always() && steps.seal_guard.outcome == 'success'
@@ -166,26 +160,23 @@ jobs:
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
           bun-version: 1.3.13
-      - name: Checkout exact private source with temporary read-only key
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          repository: Therenovatioai/woia-foundation
-          ref: ${{ inputs.commit }}
-          ssh-key: ${{ secrets.WOIA_SOURCE_READ_KEY }}
-          ssh-strict: true
-          persist-credentials: false
-          path: source
       - name: Verify public adapter integrity
         if: always()
         run: >-
-          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"aef9fb66aa2b3438da22736fde9e0237dcd56244f055064bc9272bf38f9d4466","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"052cc1d843694c625b1a4550be7c6428991781d5ac665bbf0523d46991be1367","verification/evidence.test.mjs":"7de7c84ec29e9ab5d19fbae2a2b20d7ec9d9d0a283b617fdee93f4a5bc95393a","verification/preflight.mjs":"fe094301b01543d0991c683083c8f4d6cadd88272c342dddf6bfbd434025f59f"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"e2569de06eee294028238c1114b9c2e6ae05c9aacb11a322fd8d0c9327447e8c","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"052cc1d843694c625b1a4550be7c6428991781d5ac665bbf0523d46991be1367","verification/evidence.test.mjs":"b1725d088c8f5281d08dad4252bd8aaf87225cc8b19e0efc28d97d1924e2721a","verification/preflight.mjs":"fe094301b01543d0991c683083c8f4d6cadd88272c342dddf6bfbd434025f59f"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+      - name: Guard both identities before granting access
+        run: node verification/driver.mjs guard
+      - name: Capture exact private checkout and remove its temporary authentication
+        env:
+          WOIA_SOURCE_READ_KEY: ${{ secrets.WOIA_SOURCE_READ_KEY }}
+        run: node verification/driver.mjs checkout
       - name: Run complete Windows partition
         run: node verification/driver.mjs run
       - name: Verify public adapter integrity
         id: seal_guard
         if: always()
         run: >-
-          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"aef9fb66aa2b3438da22736fde9e0237dcd56244f055064bc9272bf38f9d4466","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"052cc1d843694c625b1a4550be7c6428991781d5ac665bbf0523d46991be1367","verification/evidence.test.mjs":"7de7c84ec29e9ab5d19fbae2a2b20d7ec9d9d0a283b617fdee93f4a5bc95393a","verification/preflight.mjs":"fe094301b01543d0991c683083c8f4d6cadd88272c342dddf6bfbd434025f59f"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"e2569de06eee294028238c1114b9c2e6ae05c9aacb11a322fd8d0c9327447e8c","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"052cc1d843694c625b1a4550be7c6428991781d5ac665bbf0523d46991be1367","verification/evidence.test.mjs":"b1725d088c8f5281d08dad4252bd8aaf87225cc8b19e0efc28d97d1924e2721a","verification/preflight.mjs":"fe094301b01543d0991c683083c8f4d6cadd88272c342dddf6bfbd434025f59f"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
       - name: Encrypt private evidence for the maintainer
         id: seal
         if: always() && steps.seal_guard.outcome == 'success'
@@ -202,7 +193,7 @@ jobs:
   verified:
     name: Publication verified (exact source and workflow)
     needs: [static, platform, windows]
-    if: always()
+    if: always() && github.repository == 'Therenovatioai/woia-releases' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -218,19 +209,16 @@ jobs:
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
           bun-version: 1.3.13
-      - name: Checkout exact private source with temporary read-only key
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          repository: Therenovatioai/woia-foundation
-          ref: ${{ inputs.commit }}
-          ssh-key: ${{ secrets.WOIA_SOURCE_READ_KEY }}
-          ssh-strict: true
-          persist-credentials: false
-          path: source
       - name: Verify public adapter integrity
         if: always()
         run: >-
-          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"aef9fb66aa2b3438da22736fde9e0237dcd56244f055064bc9272bf38f9d4466","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"052cc1d843694c625b1a4550be7c6428991781d5ac665bbf0523d46991be1367","verification/evidence.test.mjs":"7de7c84ec29e9ab5d19fbae2a2b20d7ec9d9d0a283b617fdee93f4a5bc95393a","verification/preflight.mjs":"fe094301b01543d0991c683083c8f4d6cadd88272c342dddf6bfbd434025f59f"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"e2569de06eee294028238c1114b9c2e6ae05c9aacb11a322fd8d0c9327447e8c","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"052cc1d843694c625b1a4550be7c6428991781d5ac665bbf0523d46991be1367","verification/evidence.test.mjs":"b1725d088c8f5281d08dad4252bd8aaf87225cc8b19e0efc28d97d1924e2721a","verification/preflight.mjs":"fe094301b01543d0991c683083c8f4d6cadd88272c342dddf6bfbd434025f59f"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+      - name: Guard both identities before granting access
+        run: node verification/driver.mjs guard
+      - name: Capture exact private checkout and remove its temporary authentication
+        env:
+          WOIA_SOURCE_READ_KEY: ${{ secrets.WOIA_SOURCE_READ_KEY }}
+        run: node verification/driver.mjs checkout
       - name: Download authenticated encrypted evidence
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
@@ -247,7 +235,7 @@ jobs:
         id: seal_guard
         if: always()
         run: >-
-          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"aef9fb66aa2b3438da22736fde9e0237dcd56244f055064bc9272bf38f9d4466","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"052cc1d843694c625b1a4550be7c6428991781d5ac665bbf0523d46991be1367","verification/evidence.test.mjs":"7de7c84ec29e9ab5d19fbae2a2b20d7ec9d9d0a283b617fdee93f4a5bc95393a","verification/preflight.mjs":"fe094301b01543d0991c683083c8f4d6cadd88272c342dddf6bfbd434025f59f"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"e2569de06eee294028238c1114b9c2e6ae05c9aacb11a322fd8d0c9327447e8c","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"052cc1d843694c625b1a4550be7c6428991781d5ac665bbf0523d46991be1367","verification/evidence.test.mjs":"b1725d088c8f5281d08dad4252bd8aaf87225cc8b19e0efc28d97d1924e2721a","verification/preflight.mjs":"fe094301b01543d0991c683083c8f4d6cadd88272c342dddf6bfbd434025f59f"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
       - name: Encrypt private evidence for the maintainer
         id: seal
         if: always() && steps.seal_guard.outcome == 'success'

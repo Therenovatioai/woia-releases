@@ -72,3 +72,13 @@ test('private command channels stay in files and failures propagate', () => fixt
   assert.match(await readFile(log, 'utf8'), /PRIVATE-SYNTHETIC-MARKER/);
   assert.equal(await readFile(env.GITHUB_STEP_SUMMARY, 'utf8'), 'PRIVATE-SUMMARY');
 }));
+test('Git checkout subjects and Git errors remain in captured private logs', () => fixture(async ({root,input}) => {
+  const env = privateEnvironment(process.env, root);
+  const git = (name, args) => quiet('git', args, input, join(root, `${name}.log`), env, 10000);
+  await git('init', ['init', '--quiet']);
+  await git('commit', ['-c', 'user.name=Synthetic', '-c', 'user.email=synthetic@example.invalid', 'commit', '--allow-empty', '-m', 'PRIVATE-COMMIT-SUBJECT']);
+  await git('checkout', ['checkout', '--detach', 'HEAD']);
+  assert.match(await readFile(join(root, 'checkout.log'), 'utf8'), /PRIVATE-COMMIT-SUBJECT/);
+  await assert.rejects(git('error', ['checkout', 'PRIVATE-MISSING-REF']));
+  assert.match(await readFile(join(root, 'error.log'), 'utf8'), /PRIVATE-MISSING-REF/);
+}));

@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdir, open, writeFile, readFile, readdir, copyFile, lstat } from 'node:fs/promises';
+import { mkdir, open, writeFile, readFile, readdir, copyFile, lstat, mkdtemp, unlink, rmdir } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -28,13 +28,48 @@ function configuration() {
   const context = validateContext({ job, repository: env.GITHUB_REPOSITORY, sourceSha: env.WOIA_COMMIT,
     workflowSha: env.WOIA_WORKFLOW_COMMIT, runId: env.GITHUB_RUN_ID, runAttempt: env.GITHUB_RUN_ATTEMPT });
   if (env.RUNNER_DEBUG === '1' || env.ACTIONS_STEP_DEBUG === 'true' || env.ACTIONS_RUNNER_DEBUG === 'true') throw new Error('Debug logging is not supported for private verification.');
-  if (env.GITHUB_ACTIONS !== 'true' || env.GITHUB_SHA !== context.workflowSha || env.GITHUB_EVENT_NAME !== 'workflow_dispatch')
+  if (env.GITHUB_ACTIONS !== 'true' || env.GITHUB_SHA !== context.workflowSha || env.GITHUB_EVENT_NAME !== 'workflow_dispatch' || env.GITHUB_REF !== 'refs/heads/main')
     throw new Error('Publication identity rejected.');
   if (!/^0\.1\.0-(alpha|beta|rc)\.(0|[1-9][0-9]{0,5})$/.test(env.WOIA_RELEASE_VERSION) || !['0.1.4', '0.1.6'].includes(env.WOIA_BRIDGE_VERSION))
     throw new Error('Publication input rejected.');
   const root = resolve(env.GITHUB_WORKSPACE, 'source');
   const data = resolve(env.RUNNER_TEMP, 'woia-private');
   return { env, context, root, data };
+}
+async function checkout() {
+  const c = configuration();
+  const logs = join(c.data, 'logs', `checkout-${c.context.job}`);
+  await mkdir(logs, { recursive: true });
+  const auth = await mkdtemp(join(c.env.RUNNER_TEMP, 'woia-checkout-auth-'));
+  const identity = join(auth, 'identity');
+  const hosts = join(auth, 'known_hosts');
+  try {
+    if (!c.env.WOIA_SOURCE_READ_KEY?.startsWith('-----BEGIN OPENSSH PRIVATE KEY-----')) throw new Error('Read-only checkout key missing.');
+    await writeFile(identity, c.env.WOIA_SOURCE_READ_KEY.trim() + '\n', { flag: 'wx', mode: 0o600 });
+    await writeFile(hosts, 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n', { flag: 'wx' });
+    const env = privateEnvironment(c.env, logs);
+    if (process.platform === 'win32') {
+      if (!env.USERDOMAIN || !env.USERNAME) throw new Error('Windows key owner unknown.');
+      await quiet('icacls', [identity, '/inheritance:r', '/grant:r', `${env.USERDOMAIN}\\${env.USERNAME}:F`], auth, join(logs, 'acl.log'), env, 10000);
+    }
+    const quote = (path) => `'${path.replaceAll('\\', '/').replaceAll("'", "'\\''")}'`;
+    env.GIT_SSH_COMMAND = `ssh -i ${quote(identity)} -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${quote(hosts)}`;
+    env.GIT_TERMINAL_PROMPT = '0';
+    await mkdir(c.root);
+    const git = (id, args) => quiet('git', args, c.root, join(logs, `${id}.log`), env, 120000);
+    await git('init', ['init', '--quiet']);
+    await git('remote', ['remote', 'add', 'origin', 'git@github.com:Therenovatioai/woia-foundation.git']);
+    await git('fetch', ['fetch', '--no-tags', '--depth=1', 'origin', c.context.sourceSha]);
+    await git('checkout', ['checkout', '--detach', c.context.sourceSha]);
+  } finally {
+    // Remove only our two files and empty private directory, including every error path.
+    for (const file of [identity, hosts]) {
+      try { await unlink(file); } catch (e) { if (e.code !== 'ENOENT') throw e; }
+    }
+    await rmdir(auth);
+    delete process.env.WOIA_SOURCE_READ_KEY;
+  }
+  console.log('Exact private checkout completed; temporary authentication removed.');
 }
 async function run() {
   const c = configuration();
@@ -126,6 +161,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     if (process.argv.length !== 3) throw new Error('Usage rejected.');
     const mode = process.argv[2];
     if (mode === 'run') await run();
+    else if (mode === 'guard') { configuration(); console.log('Source and workflow identities accepted.'); }
+    else if (mode === 'checkout') await checkout();
     else if (mode === 'seal') await encrypt();
     else if (mode === 'unseal') await decrypt();
     else throw new Error('Usage rejected.');
