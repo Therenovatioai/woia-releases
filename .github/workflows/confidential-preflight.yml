@@ -5,12 +5,8 @@ permissions:
   contents: read
 jobs:
   native:
-    name: Confidential transport (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    name: Confidential transport (Windows x64)
+    runs-on: windows-latest
     timeout-minutes: 5
     env:
       WOIA_COMMIT: 4506281317bed68c22bb5e5245917ccfc7d8150d
@@ -22,7 +18,7 @@ jobs:
       - run: node verification/preflight.mjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: confidential-preflight-${{ matrix.os }}
+          name: confidential-preflight-windows
           path: ${{ runner.temp }}/synthetic-sealed/*.wci
           if-no-files-found: error
           retention-days: 1

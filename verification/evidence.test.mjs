@@ -4,12 +4,21 @@ import { mkdtemp, realpath, mkdir, writeFile, readFile, rm, symlink, stat } from
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { generateKeyPairSync } from 'node:crypto';
-import { seal, unseal } from './evidence.mjs';
+import { seal, unseal, validateContext } from './evidence.mjs';
 import { quiet, privateEnvironment } from './driver.mjs';
 
 const keys = generateKeyPairSync('rsa', { modulusLength: 3072, publicKeyEncoding: { type: 'spki', format: 'pem' }, privateKeyEncoding: { type: 'pkcs8', format: 'pem' } });
 const wrong = generateKeyPairSync('rsa', { modulusLength: 3072, privateKeyEncoding: { type: 'pkcs8', format: 'pem' } });
 const context = { repository: 'Therenovatioai/woia-releases', sourceSha: 'a'.repeat(40), workflowSha: 'b'.repeat(40), runId: '1', runAttempt: '1', job: 'static' };
+test('evidence accepts only the Windows publication job inventory', () => {
+  assert.doesNotThrow(() => validateContext({ ...context, job: 'platform-win32' }));
+  for (const job of ['platform-linux', 'platform-darwin'])
+    assert.throws(() => validateContext({ ...context, job }));
+});
+test('publication flattens sealed evidence into the aggregator inventory directory', async () => {
+  const workflow = await readFile(new URL('../.github/workflows/publication.yml', import.meta.url), 'utf8');
+  assert.match(workflow, /pattern: evidence-\$\{\{ github\.run_attempt \}\}-\*[\s\S]*?merge-multiple: true/);
+});
 async function fixture(run) {
   const root = await mkdtemp(join(await realpath(tmpdir()), 'woia-cipher-test-'));
   try {

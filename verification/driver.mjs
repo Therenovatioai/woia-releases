@@ -28,10 +28,11 @@ function configuration() {
   const job = env.WOIA_JOB;
   const context = validateContext({ job, repository: env.GITHUB_REPOSITORY, sourceSha: env.WOIA_COMMIT,
     workflowSha: env.WOIA_WORKFLOW_COMMIT, runId: env.GITHUB_RUN_ID, runAttempt: env.GITHUB_RUN_ATTEMPT });
+  if (process.platform !== 'win32' || process.arch !== 'x64') throw new Error('Native verification requires Windows x64.');
   if (env.RUNNER_DEBUG === '1' || env.ACTIONS_STEP_DEBUG === 'true' || env.ACTIONS_RUNNER_DEBUG === 'true') throw new Error('Debug logging is not supported for private verification.');
   if (env.GITHUB_ACTIONS !== 'true' || env.GITHUB_SHA !== context.workflowSha || env.GITHUB_EVENT_NAME !== 'workflow_dispatch' || env.GITHUB_REF !== 'refs/heads/main')
     throw new Error('Publication identity rejected.');
-  if (!/^0\.1\.0-(alpha|beta|rc)\.(0|[1-9][0-9]{0,5})$/.test(env.WOIA_RELEASE_VERSION) || !['0.1.4', '0.1.6'].includes(env.WOIA_BRIDGE_VERSION))
+  if (!/^0\.1\.0-(alpha|beta|rc)\.(0|[1-9][0-9]{0,5})$/.test(env.WOIA_RELEASE_VERSION) || env.WOIA_BRIDGE_VERSION !== '0.1.6')
     throw new Error('Publication input rejected.');
   const root = resolve(env.GITHUB_WORKSPACE, 'source');
   const data = resolve(env.RUNNER_TEMP, 'woia-private');
@@ -119,14 +120,13 @@ async function run(diagnostic = false) {
     await command('static', ['run', 'check:static'], {}, 300000);
   } else if (c.context.job.startsWith('platform-')) {
     if (c.context.job !== `platform-${process.platform}`) throw new Error('Native platform differs.');
-    const label = { linux: 'Linux', darwin: 'macOS', win32: 'Windows' }[process.platform];
-    // The platform job owns the original shared 80-minute budget; do not impose a shorter suite cap.
+    const label = 'Windows';
+    // Functional tests run once across the eight Windows shards below.
     await command('conformance', ['run', 'conformance', 'run', '--output', join(paths.conformance, `${label}.conformance.json`)], {}, 4500000);
     await command('build', ['tooling/release/ci.ts'], {
       WOIA_RELEASE_OUTPUT: join(paths.release, `${label}.tar.gz`), WOIA_RELEASE_REPORT: join(paths.release, `${label}.release.json`),
       WOIA_RUNTIME_OUTPUT: paths.runtime, WOIA_PREDECESSOR_RUN: '', WOIA_PREDECESSOR_DIGESTS: '',
     }, 4500000);
-    if (process.platform !== 'win32') await command('tests', ['run', 'test:ci'], tests, 3600000);
   } else if (c.context.job.startsWith('windows-')) {
     if (process.platform !== 'win32') throw new Error('Windows runner required.');
     await command('tests', ['run', 'test:ci', `${c.context.job.slice(8)}/8`], tests, 3600000);
@@ -155,7 +155,7 @@ async function decrypt() {
   const input = join(c.env.RUNNER_TEMP, 'woia-sealed-input');
   const decoded = join(c.env.RUNNER_TEMP, 'woia-decoded');
   await mkdir(decoded);
-  const expectedJobs = ['static', 'platform-linux', 'platform-darwin', 'platform-win32', ...Array.from({ length: 8 }, (_, n) => `windows-${n + 1}`)];
+  const expectedJobs = ['static', 'platform-win32', ...Array.from({ length: 8 }, (_, n) => `windows-${n + 1}`)];
   const names = (await readdir(input)).sort();
   if (JSON.stringify(names) !== JSON.stringify(expectedJobs.map((j) => `${j}.wci`).sort())) throw new Error('Evidence job inventory differs.');
   const { job: _job, ...expected } = c.context;

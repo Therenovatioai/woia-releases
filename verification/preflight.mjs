@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { seal } from './evidence.mjs';
+if (process.platform !== 'win32' || process.arch !== 'x64') throw new Error('Confidential preflight requires Windows x64.');
 const root = join(process.env.RUNNER_TEMP, 'synthetic-private');
 const out = join(process.env.RUNNER_TEMP, 'synthetic-sealed');
 await mkdir(root);

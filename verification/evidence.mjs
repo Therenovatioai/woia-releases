@@ -17,7 +17,7 @@ export function validateContext(c) {
   require(c.repository === 'Therenovatioai/woia-releases');
   require([c.sourceSha, c.workflowSha].every((s) => /^[a-f0-9]{40}$/.test(s)));
   require([c.runId, c.runAttempt].every((s) => /^[1-9][0-9]{0,19}$/.test(s)));
-  require(/^(static|platform-(linux|darwin|win32)|windows-[1-8]|verified)$/.test(c.job));
+  require(/^(static|platform-win32|windows-[1-8]|verified)$/.test(c.job));
   return c;
 }
 function publicKey(pem) {

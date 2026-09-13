@@ -5,13 +5,9 @@ permissions:
   contents: read
 jobs:
   native:
-    name: Native runner (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    name: Native runner (Windows x64)
+    runs-on: windows-latest
     timeout-minutes: 4
     steps:
       - name: Identify native platform
-        run: node -e "console.log(JSON.stringify({os:process.platform,architecture:process.arch}))"
+        run: node -e "if(process.platform!=='win32'||process.arch!=='x64')process.exit(1);console.log(JSON.stringify({os:process.platform,architecture:process.arch}))"
