@@ -53,7 +53,7 @@ jobs:
       - name: Verify public adapter integrity
         if: always()
         run: >-
-          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"91749f1b463e11f176681bc59d4d7645c03187215af8f0b0136e74a487225309","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"12869f2ae1e62550186cd73ff672c5dac618deca2334ecc8fed42b488f60f9b8","verification/evidence.test.mjs":"85833ceda10d3e00ec54af40bdd037dce942720adf078b81e576efd620e57dac","verification/preflight.mjs":"9cf973bc7afc0a9830720b5c8a81613e451d3cd5bcba27a4e323732a87ab2c66"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"91749f1b463e11f176681bc59d4d7645c03187215af8f0b0136e74a487225309","verification/evidence-public.pem":"8cb2a0a505d36691b99c536a3ac32f0370943f0bd64b73a2abdb1ac64fec469d","verification/evidence.mjs":"12869f2ae1e62550186cd73ff672c5dac618deca2334ecc8fed42b488f60f9b8","verification/evidence.test.mjs":"85833ceda10d3e00ec54af40bdd037dce942720adf078b81e576efd620e57dac","verification/preflight.mjs":"9cf973bc7afc0a9830720b5c8a81613e451d3cd5bcba27a4e323732a87ab2c66"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
       - name: Guard both identities before granting access
         run: node verification/driver.mjs guard
       - name: Capture exact private checkout and remove its temporary authentication
@@ -68,7 +68,7 @@ jobs:
         id: seal_guard
         if: always()
         run: >-
-          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"91749f1b463e11f176681bc59d4d7645c03187215af8f0b0136e74a487225309","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"12869f2ae1e62550186cd73ff672c5dac618deca2334ecc8fed42b488f60f9b8","verification/evidence.test.mjs":"85833ceda10d3e00ec54af40bdd037dce942720adf078b81e576efd620e57dac","verification/preflight.mjs":"9cf973bc7afc0a9830720b5c8a81613e451d3cd5bcba27a4e323732a87ab2c66"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"91749f1b463e11f176681bc59d4d7645c03187215af8f0b0136e74a487225309","verification/evidence-public.pem":"8cb2a0a505d36691b99c536a3ac32f0370943f0bd64b73a2abdb1ac64fec469d","verification/evidence.mjs":"12869f2ae1e62550186cd73ff672c5dac618deca2334ecc8fed42b488f60f9b8","verification/evidence.test.mjs":"85833ceda10d3e00ec54af40bdd037dce942720adf078b81e576efd620e57dac","verification/preflight.mjs":"9cf973bc7afc0a9830720b5c8a81613e451d3cd5bcba27a4e323732a87ab2c66"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
       - name: Encrypt private evidence for the maintainer
         id: seal
         if: always() && steps.seal_guard.outcome == 'success'
@@ -102,7 +102,7 @@ jobs:
       - name: Verify public adapter integrity
         if: always()
         run: >-
-          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"91749f1b463e11f176681bc59d4d7645c03187215af8f0b0136e74a487225309","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"12869f2ae1e62550186cd73ff672c5dac618deca2334ecc8fed42b488f60f9b8","verification/evidence.test.mjs":"85833ceda10d3e00ec54af40bdd037dce942720adf078b81e576efd620e57dac","verification/preflight.mjs":"9cf973bc7afc0a9830720b5c8a81613e451d3cd5bcba27a4e323732a87ab2c66"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"91749f1b463e11f176681bc59d4d7645c03187215af8f0b0136e74a487225309","verification/evidence-public.pem":"8cb2a0a505d36691b99c536a3ac32f0370943f0bd64b73a2abdb1ac64fec469d","verification/evidence.mjs":"12869f2ae1e62550186cd73ff672c5dac618deca2334ecc8fed42b488f60f9b8","verification/evidence.test.mjs":"85833ceda10d3e00ec54af40bdd037dce942720adf078b81e576efd620e57dac","verification/preflight.mjs":"9cf973bc7afc0a9830720b5c8a81613e451d3cd5bcba27a4e323732a87ab2c66"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
       - name: Guard both identities before granting access
         run: node verification/driver.mjs guard
       - name: Capture exact private checkout and remove its temporary authentication
@@ -115,7 +115,7 @@ jobs:
         id: seal_guard
         if: always()
         run: >-
-          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"91749f1b463e11f176681bc59d4d7645c03187215af8f0b0136e74a487225309","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"12869f2ae1e62550186cd73ff672c5dac618deca2334ecc8fed42b488f60f9b8","verification/evidence.test.mjs":"85833ceda10d3e00ec54af40bdd037dce942720adf078b81e576efd620e57dac","verification/preflight.mjs":"9cf973bc7afc0a9830720b5c8a81613e451d3cd5bcba27a4e323732a87ab2c66"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"91749f1b463e11f176681bc59d4d7645c03187215af8f0b0136e74a487225309","verification/evidence-public.pem":"8cb2a0a505d36691b99c536a3ac32f0370943f0bd64b73a2abdb1ac64fec469d","verification/evidence.mjs":"12869f2ae1e62550186cd73ff672c5dac618deca2334ecc8fed42b488f60f9b8","verification/evidence.test.mjs":"85833ceda10d3e00ec54af40bdd037dce942720adf078b81e576efd620e57dac","verification/preflight.mjs":"9cf973bc7afc0a9830720b5c8a81613e451d3cd5bcba27a4e323732a87ab2c66"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
       - name: Encrypt private evidence for the maintainer
         id: seal
         if: always() && steps.seal_guard.outcome == 'success'
@@ -153,7 +153,7 @@ jobs:
       - name: Verify public adapter integrity
         if: always()
         run: >-
-          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"91749f1b463e11f176681bc59d4d7645c03187215af8f0b0136e74a487225309","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"12869f2ae1e62550186cd73ff672c5dac618deca2334ecc8fed42b488f60f9b8","verification/evidence.test.mjs":"85833ceda10d3e00ec54af40bdd037dce942720adf078b81e576efd620e57dac","verification/preflight.mjs":"9cf973bc7afc0a9830720b5c8a81613e451d3cd5bcba27a4e323732a87ab2c66"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"91749f1b463e11f176681bc59d4d7645c03187215af8f0b0136e74a487225309","verification/evidence-public.pem":"8cb2a0a505d36691b99c536a3ac32f0370943f0bd64b73a2abdb1ac64fec469d","verification/evidence.mjs":"12869f2ae1e62550186cd73ff672c5dac618deca2334ecc8fed42b488f60f9b8","verification/evidence.test.mjs":"85833ceda10d3e00ec54af40bdd037dce942720adf078b81e576efd620e57dac","verification/preflight.mjs":"9cf973bc7afc0a9830720b5c8a81613e451d3cd5bcba27a4e323732a87ab2c66"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
       - name: Guard both identities before granting access
         run: node verification/driver.mjs guard
       - name: Capture exact private checkout and remove its temporary authentication
@@ -166,7 +166,7 @@ jobs:
         id: seal_guard
         if: always()
         run: >-
-          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"91749f1b463e11f176681bc59d4d7645c03187215af8f0b0136e74a487225309","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"12869f2ae1e62550186cd73ff672c5dac618deca2334ecc8fed42b488f60f9b8","verification/evidence.test.mjs":"85833ceda10d3e00ec54af40bdd037dce942720adf078b81e576efd620e57dac","verification/preflight.mjs":"9cf973bc7afc0a9830720b5c8a81613e451d3cd5bcba27a4e323732a87ab2c66"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"91749f1b463e11f176681bc59d4d7645c03187215af8f0b0136e74a487225309","verification/evidence-public.pem":"8cb2a0a505d36691b99c536a3ac32f0370943f0bd64b73a2abdb1ac64fec469d","verification/evidence.mjs":"12869f2ae1e62550186cd73ff672c5dac618deca2334ecc8fed42b488f60f9b8","verification/evidence.test.mjs":"85833ceda10d3e00ec54af40bdd037dce942720adf078b81e576efd620e57dac","verification/preflight.mjs":"9cf973bc7afc0a9830720b5c8a81613e451d3cd5bcba27a4e323732a87ab2c66"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
       - name: Encrypt private evidence for the maintainer
         id: seal
         if: always() && steps.seal_guard.outcome == 'success'
@@ -202,7 +202,7 @@ jobs:
       - name: Verify public adapter integrity
         if: always()
         run: >-
-          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"91749f1b463e11f176681bc59d4d7645c03187215af8f0b0136e74a487225309","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"12869f2ae1e62550186cd73ff672c5dac618deca2334ecc8fed42b488f60f9b8","verification/evidence.test.mjs":"85833ceda10d3e00ec54af40bdd037dce942720adf078b81e576efd620e57dac","verification/preflight.mjs":"9cf973bc7afc0a9830720b5c8a81613e451d3cd5bcba27a4e323732a87ab2c66"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"91749f1b463e11f176681bc59d4d7645c03187215af8f0b0136e74a487225309","verification/evidence-public.pem":"8cb2a0a505d36691b99c536a3ac32f0370943f0bd64b73a2abdb1ac64fec469d","verification/evidence.mjs":"12869f2ae1e62550186cd73ff672c5dac618deca2334ecc8fed42b488f60f9b8","verification/evidence.test.mjs":"85833ceda10d3e00ec54af40bdd037dce942720adf078b81e576efd620e57dac","verification/preflight.mjs":"9cf973bc7afc0a9830720b5c8a81613e451d3cd5bcba27a4e323732a87ab2c66"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
       - name: Guard both identities before granting access
         run: node verification/driver.mjs guard
       - name: Capture exact private checkout and remove its temporary authentication
@@ -225,7 +225,7 @@ jobs:
         id: seal_guard
         if: always()
         run: >-
-          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"91749f1b463e11f176681bc59d4d7645c03187215af8f0b0136e74a487225309","verification/evidence-public.pem":"374d206b9d02731282645404cfd96d9a4efd34fd918498b3a320abb831d6818f","verification/evidence.mjs":"12869f2ae1e62550186cd73ff672c5dac618deca2334ecc8fed42b488f60f9b8","verification/evidence.test.mjs":"85833ceda10d3e00ec54af40bdd037dce942720adf078b81e576efd620e57dac","verification/preflight.mjs":"9cf973bc7afc0a9830720b5c8a81613e451d3cd5bcba27a4e323732a87ab2c66"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const pins={"verification/driver.mjs":"91749f1b463e11f176681bc59d4d7645c03187215af8f0b0136e74a487225309","verification/evidence-public.pem":"8cb2a0a505d36691b99c536a3ac32f0370943f0bd64b73a2abdb1ac64fec469d","verification/evidence.mjs":"12869f2ae1e62550186cd73ff672c5dac618deca2334ecc8fed42b488f60f9b8","verification/evidence.test.mjs":"85833ceda10d3e00ec54af40bdd037dce942720adf078b81e576efd620e57dac","verification/preflight.mjs":"9cf973bc7afc0a9830720b5c8a81613e451d3cd5bcba27a4e323732a87ab2c66"};for(const [p,h] of Object.entries(pins)){if(crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")!==h)throw Error("Adapter integrity rejected");}'
       - name: Encrypt private evidence for the maintainer
         id: seal
         if: always() && steps.seal_guard.outcome == 'success'
