@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { mkdir, open, writeFile, readFile, readdir, copyFile, lstat, mkdtemp, unlink, rmdir } from 'node:fs/promises';
 import { constants } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -12,6 +13,53 @@ export function privateEnvironment(base, directory) {
   for (const name of ['GITHUB_STEP_SUMMARY', 'GITHUB_OUTPUT', 'GITHUB_ENV', 'GITHUB_PATH', 'GITHUB_STATE'])
     env[name] = join(directory, `${name}.txt`);
   return env;
+}
+const RELEASE_VERSION = /^0\.1\.0-(alpha|beta|rc)\.(0|[1-9][0-9]{0,5})$/;
+const RELEASE_TAG = /^v0\.1\.0-(alpha|beta|rc)\.(0|[1-9][0-9]{0,5})$/;
+function versionOrder(version) {
+  const match = /^(?:v)?0\.1\.0-(alpha|beta|rc)\.(0|[1-9][0-9]{0,5})$/.exec(version);
+  if (!match) throw new Error('Release version rejected.');
+  return ['alpha', 'beta', 'rc'].indexOf(match[1]) * 1000000 + Number(match[2]);
+}
+export function validatePredecessorInputs({ releaseVersion, predecessorTag = '', predecessorSha256 = '' }) {
+  if (!RELEASE_VERSION.test(releaseVersion ?? '')) throw new Error('Release version rejected.');
+  const hasTag = predecessorTag !== '';
+  const hasDigest = predecessorSha256 !== '';
+  if (hasTag !== hasDigest) throw new Error('Predecessor tag and digest must be supplied together.');
+  if (!hasTag) {
+    if (releaseVersion !== '0.1.0-alpha.0') throw new Error('Only the initial alpha.0 release may use the starter bridge.');
+    return null;
+  }
+  if (!RELEASE_TAG.test(predecessorTag) || !/^sha256:[a-f0-9]{64}$/.test(predecessorSha256))
+    throw new Error('Predecessor identity rejected.');
+  if (versionOrder(releaseVersion) <= versionOrder(predecessorTag))
+    throw new Error('Destination must advance the predecessor tag.');
+  return { tag: predecessorTag, version: predecessorTag.slice(1), sha256: predecessorSha256 };
+}
+export async function downloadPredecessor(selection, directory, fetchImpl = fetch) {
+  if (selection === null) return null;
+  const asset = `woia-${selection.version}-win32-x64.tar.gz`;
+  const url = `https://github.com/Therenovatioai/woia-releases/releases/download/${encodeURIComponent(selection.tag)}/${asset}`;
+  const response = await fetchImpl(url, { redirect: 'follow' });
+  if (!response.ok) throw new Error('Public predecessor asset could not be downloaded.');
+  const declaredLength = Number(response.headers.get('content-length') ?? 0);
+  if (declaredLength > 512 * 1024 * 1024) throw new Error('Public predecessor asset exceeds the release limit.');
+  const chunks = [];
+  let length = 0;
+  for await (const chunk of response.body) {
+    const bytes = Buffer.from(chunk);
+    length += bytes.length;
+    if (length > 512 * 1024 * 1024) throw new Error('Public predecessor asset size rejected.');
+    chunks.push(bytes);
+  }
+  if (length === 0) throw new Error('Public predecessor asset size rejected.');
+  const bytes = Buffer.concat(chunks, length);
+  const actual = `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+  if (actual !== selection.sha256) throw new Error('Public predecessor digest rejected.');
+  await mkdir(directory, { recursive: true });
+  const archive = join(directory, 'predecessor.tar.gz');
+  await writeFile(archive, bytes, { flag: 'wx', mode: 0o600 });
+  return { archive, sha256: actual, tag: selection.tag };
 }
 export async function quiet(executable, args, cwd, log, env, timeoutMs) {
   const fd = await open(log, 'wx', 0o600);
@@ -32,11 +80,22 @@ function configuration() {
   if (env.RUNNER_DEBUG === '1' || env.ACTIONS_STEP_DEBUG === 'true' || env.ACTIONS_RUNNER_DEBUG === 'true') throw new Error('Debug logging is not supported for private verification.');
   if (env.GITHUB_ACTIONS !== 'true' || env.GITHUB_SHA !== context.workflowSha || env.GITHUB_EVENT_NAME !== 'workflow_dispatch' || env.GITHUB_REF !== 'refs/heads/main')
     throw new Error('Publication identity rejected.');
-  if (!/^0\.1\.0-(alpha|beta|rc)\.(0|[1-9][0-9]{0,5})$/.test(env.WOIA_RELEASE_VERSION) || env.WOIA_BRIDGE_VERSION !== '0.1.6')
+  if (!RELEASE_VERSION.test(env.WOIA_RELEASE_VERSION ?? '') || env.WOIA_BRIDGE_VERSION !== '0.1.6')
     throw new Error('Publication input rejected.');
+  const predecessorTag = env.WOIA_PREDECESSOR_TAG ?? '';
+  const predecessorSha256 = env.WOIA_PREDECESSOR_SHA256 ?? '';
+  let predecessor;
+  if (env.WOIA_DIAGNOSTIC === 'true') {
+    if (predecessorTag !== '' || predecessorSha256 !== '') throw new Error('Diagnostic mode cannot select a release predecessor.');
+    predecessor = null;
+  } else predecessor = validatePredecessorInputs({
+      releaseVersion: env.WOIA_RELEASE_VERSION,
+      predecessorTag,
+      predecessorSha256,
+    });
   const root = resolve(env.GITHUB_WORKSPACE, 'source');
   const data = resolve(env.RUNNER_TEMP, 'woia-private');
-  return { env, context, root, data };
+  return { env, context, root, data, predecessor };
 }
 async function checkout() {
   const c = configuration();
@@ -95,6 +154,9 @@ async function run(diagnostic = false) {
       throw new Error('Temporary checkout key remains.');
   }
   const command = (id, args, extra = {}, timeout = 600000) => quiet('bun', args, c.root, join(logs, `${id}.log`), { ...env, ...extra }, timeout);
+  const predecessor = !diagnostic && c.context.job === 'platform-win32'
+    ? await downloadPredecessor(c.predecessor, join(c.env.RUNNER_TEMP, 'woia-predecessor'))
+    : null;
   await command('install', ['install', '--frozen-lockfile']);
   if (diagnostic) {
     if (c.context.job !== `platform-${process.platform}`) throw new Error('Diagnostic platform differs.');
@@ -125,7 +187,10 @@ async function run(diagnostic = false) {
     await command('conformance', ['run', 'conformance', 'run', '--output', join(paths.conformance, `${label}.conformance.json`)], {}, 4500000);
     await command('build', ['tooling/release/ci.ts'], {
       WOIA_RELEASE_OUTPUT: join(paths.release, `${label}.tar.gz`), WOIA_RELEASE_REPORT: join(paths.release, `${label}.release.json`),
-      WOIA_RUNTIME_OUTPUT: paths.runtime, WOIA_PREDECESSOR_RUN: '', WOIA_PREDECESSOR_DIGESTS: '',
+      WOIA_RUNTIME_OUTPUT: paths.runtime,
+      WOIA_PREDECESSOR_ARCHIVE: predecessor?.archive ?? '',
+      WOIA_PREDECESSOR_SHA256: predecessor?.sha256 ?? '',
+      WOIA_PREDECESSOR_TAG: predecessor?.tag ?? '',
     }, 4500000);
   } else if (c.context.job.startsWith('windows-')) {
     if (process.platform !== 'win32') throw new Error('Windows runner required.');

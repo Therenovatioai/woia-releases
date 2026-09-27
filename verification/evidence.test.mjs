@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { mkdtemp, realpath, mkdir, writeFile, readFile, rm, symlink, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { generateKeyPairSync } from 'node:crypto';
+import { createHash, generateKeyPairSync } from 'node:crypto';
 import { seal, unseal, validateContext } from './evidence.mjs';
-import { quiet, privateEnvironment } from './driver.mjs';
+import { downloadPredecessor, quiet, privateEnvironment, validatePredecessorInputs } from './driver.mjs';
 
 const keys = generateKeyPairSync('rsa', { modulusLength: 3072, publicKeyEncoding: { type: 'spki', format: 'pem' }, privateKeyEncoding: { type: 'pkcs8', format: 'pem' } });
 const wrong = generateKeyPairSync('rsa', { modulusLength: 3072, privateKeyEncoding: { type: 'pkcs8', format: 'pem' } });
@@ -19,6 +19,45 @@ test('publication flattens sealed evidence into the aggregator inventory directo
   const workflow = await readFile(new URL('../.github/workflows/publication.yml', import.meta.url), 'utf8');
   assert.match(workflow, /pattern: evidence-\$\{\{ github\.run_attempt \}\}-\*[\s\S]*?merge-multiple: true/);
 });
+test('publication remains manual and requires an explicit destination with paired predecessor inputs', async () => {
+  const workflow = await readFile(new URL('../.github/workflows/publication.yml', import.meta.url), 'utf8');
+  assert.match(workflow, /on:\s+workflow_dispatch:/);
+  assert.doesNotMatch(workflow, /^\s*(?:push|pull_request):/m);
+  assert.match(workflow, /release_version:\s*\n\s*description:[^\n]*\n\s*required: true\n\s*type: string/);
+  const releaseInput = workflow.match(/release_version:([\s\S]*?)(?=\n      [a-z_]+:|\npermissions:)/)?.[1] ?? '';
+  assert.doesNotMatch(releaseInput, /default:/);
+  assert.match(workflow, /predecessor_tag:[\s\S]*?required: false[\s\S]*?type: string/);
+  assert.match(workflow, /predecessor_sha256:[\s\S]*?required: false[\s\S]*?type: string/);
+});
+test('predecessor inputs accept the initial bridge only for alpha.0 and reject incomplete or stale pairs', () => {
+  const digest = `sha256:${'a'.repeat(64)}`;
+  assert.equal(validatePredecessorInputs({ releaseVersion: '0.1.0-alpha.0' }), null);
+  assert.throws(() => validatePredecessorInputs({ releaseVersion: '0.1.0-alpha.1' }));
+  assert.throws(() => validatePredecessorInputs({ releaseVersion: '0.1.0-alpha.2', predecessorTag: 'v0.1.0-alpha.1' }));
+  assert.throws(() => validatePredecessorInputs({ releaseVersion: '0.1.0-alpha.2', predecessorTag: 'v0.1.0-alpha.1', predecessorSha256: 'wrong' }));
+  assert.throws(() => validatePredecessorInputs({ releaseVersion: '0.1.0-alpha.1', predecessorTag: 'v0.1.0-alpha.1', predecessorSha256: digest }));
+  assert.deepEqual(validatePredecessorInputs({ releaseVersion: '0.1.0-beta.0', predecessorTag: 'v0.1.0-alpha.1', predecessorSha256: digest }), {
+    tag: 'v0.1.0-alpha.1', version: '0.1.0-alpha.1', sha256: digest,
+  });
+});
+test('public predecessor download is tag-bound, digest-checked and skipped for the initial bridge', () => fixture(async ({root}) => {
+  const bytes = Buffer.from('PUBLIC-SYNTHETIC-PREDECESSOR');
+  const sha256 = `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+  const selection = validatePredecessorInputs({ releaseVersion: '0.1.0-alpha.2', predecessorTag: 'v0.1.0-alpha.1', predecessorSha256: sha256 });
+  let requested;
+  const fetchImpl = async (url) => {
+    requested = url;
+    return { ok: true, headers: { get: () => String(bytes.length) }, body: (async function* () { yield bytes; })() };
+  };
+  const downloaded = await downloadPredecessor(selection, join(root, 'predecessor'), fetchImpl);
+  assert.equal(requested, 'https://github.com/Therenovatioai/woia-releases/releases/download/v0.1.0-alpha.1/woia-0.1.0-alpha.1-win32-x64.tar.gz');
+  assert.equal(downloaded.sha256, sha256);
+  assert.deepEqual(await readFile(downloaded.archive), bytes);
+  assert.equal(await downloadPredecessor(null, join(root, 'bridge'), async () => { throw new Error('network must not be used'); }), null);
+  const mismatch = { ...selection, sha256: `sha256:${'0'.repeat(64)}` };
+  await assert.rejects(downloadPredecessor(mismatch, join(root, 'rejected'), fetchImpl));
+  await assert.rejects(stat(join(root, 'rejected')));
+}));
 async function fixture(run) {
   const root = await mkdtemp(join(await realpath(tmpdir()), 'woia-cipher-test-'));
   try {
